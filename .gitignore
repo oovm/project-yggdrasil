@@ -1,4 +1,12 @@
+# IDE
 .idea/
 *.iml
 .vscode/
 .vs/
+
+
+# Other
+*.m
+*.nb
+*.ps1
+*.g4
