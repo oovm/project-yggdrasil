@@ -9,10 +9,10 @@ Document:
 Use the following icons to classify your commit
 
 | Icon | Explain                               |
-| ---- | ------------------------------------- |
-| 📑    | New grammar, improved grammar         |
+|------|---------------------------------------|
+| 📑   | New grammar, improved grammar         |
 | ⚙    | Add test cases, modify grammar errors |
-| 🎨    | Highlight test and highlight repair   |
+| 🎨   | Highlight test and highlight repair   |
 
 
 ## License

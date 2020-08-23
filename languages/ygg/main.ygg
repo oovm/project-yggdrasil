@@ -1,169 +1,249 @@
-grammar! ygg {"*.yg","*.ygg", "*.grammar"}
+grammar Bootstrap {
+    patterns: ('*.ygg')
+}
 
-// Import the predefined types,
-// Otherwise the `String` type of each language will be used directly to represent the atomic expression
-import! "@typedefs/literal_types.toml"
+class Root {
+    Statement* EOI
+}
 
-ignore! {NEWLINE, WHITESPACE, COMMENT}
-
-// entry point
-program = ^statement*
-
-// `#` will generate named bindings for languages that do not support union type, such as rust
-// Union type will be used directly in other languages that support union type, such as ts, scala
-// Note that compared to ANTLR, this is not mandatory, but the same name is also forbidden.
-// If not specified, a name like `AuxVariant1` will be generated.
-statement =
-    | grammar_statement   #Grammar
-    | fragment_statement  #Fragment
-    | include_statement   #Include
-    | ignore_statement    #Ignore
-    | eos                 #Empty
-
-//?
-//* grammar tsg
-//* grammar tsg {"*.tsg", }
-grammar_statement ^= grammar ~ ^id ~ _grammar_exts? ~ eos?
-_grammar_exts      = "{" ~ @interleave(extensions <- string, ",", trailing = true)? ~ "}"
-
-
-//? `fragment` means that this file cannot build as grammar, it can only be imported.
-//? `id` represents the default name when importing, which can be changed by `as`.
-//* fragment ascii
-fragment_statement ^= fragment ~ ^id ~ eos?
-
-
-//?
-//*
-import_statement ^=
-    | import ~ (path <- string) ~ (as ^id)?         #FromPath
-    | import ~ (path <- string) ~ _import_selected  #FromPathItems
-_import_selected  = "{" ~ @interleave(item <- import_item, ",", trailing = 1)? ~ "}"
-import_item       = (id <- id) ~ as ~ (alias <- id)
-
-//?
-//* ignores /\/
-//* ignores [comment, comment_inline]
-ignores_statement ^=
-    | ignores ~ ^id
-    | ignores ~ "{" ~ @interleave(^id, ",", trailing = 1)? ~ "}"
-
-
-expression ^= 
-    | _priority         #Priority!
-    | data              #Data
-    | unary_suffix      #Suffix
-    | unary_prefix      #Prefix
-    | concat_expression #Concat
-    | or_expression     #Or
-_priority ^= "(" ~ "|"? ~ expression ~ ")"
-unary_suffix =
-    | @unary_suffix(210, _suffix_ops, expression)
-unary_prefix =
-    | @unary_prefix(200, _prefix_ops, expression)
-//* item = e1 ~ e2 ~ e3
-concat_expression = 
-    | @variadic_left(40, "~", expression)
-//* item = e1 #A | e2
-or_expression = 
-    | @variadic_left(20, "|", variant_tag)
-variant_tag = @precedence_left(100, ^expression ~ _tag_name? )
-_tag_name = "#" ~ (name <- id) ~ (mode <- /[!_^]?/) ~ (name <- id)
-//* item = tag <- name
-label_expression = 
-    | @binary_left(10, id, "<-", expression)
-_prefix_ops @= 
-    | "^"
-_suffix_ops @= 
-    | "?"b 
-    | "*"
-    | "+"
-
-
-// `_` inline a item even if it not mark as automatic inline
-data = _atom 
-atom = 
-    | id
-    | string
-    | unsigned    #Integer
-    | regex
-    | macro_call
-
-
-
-// `f(a, b)`  vs `f ~ (a | b) `
-// `f!(a, b)` vs `f ~ !(a | b)`
-macro_call = 
-      (name <- @token("@", id)) 
-    ~ "(" ~ @interleave(Expression, ",", trailing = 1) ~ ")"
-
-
-// Identifier
-@alias(id)
-@syntax_type(identifier)
-identifier @= ("_" | XID_START) ~ XID_CONTINUE
-// The bare 0 will be considered as the string "0"
-integer    @= _sign? _unsigned
-_unsigned   = 0 | [1-9] [0-9]*
-_sign       = [+-]
-// string
-string @=
-    | /'[^'\\]*(\\.[^'\\]*)*'/ 
-    | /"[^"\\]*(\\.[^"\\]*)*"/ 
-// regex
-regex_long ^= "/" ~ (item <- regex_item) ~ "/" ~ (mode <- regex_mode)?
-regex_mode  = [igm]
-regex_item  = 
-    | 
-regex_range = (mode <- "[" | "[^")  ~ regex_range_item* ~ "]"
-regex_range_item =
-    | regex_set
-    | regex_range_item_group
-    | /[^\]]/
-regex_range_item_group = 
-    | @binary_left(10, regex_range_item, "-", regex_range_item)
-regex_set = "\\p" ~ "{" ~ (set <- /[_0-9a-zA-Z]+/) ~ "}"
-regex_repeats ^=
-    | "{" ~ (repeats <- integer) ~ "}"
-    | "{" ~ (least <- integer?) ~ "," ~ (most <- integer?) ~ "}"
-// end of line
-eos = ";"
-
-
-
-
-@syntax_type(identifier)
-
-
-@syntax_type(constant)
-bool: bool @= "true" | "false"
-
-//! ====================== OVERRIDE ============================
-
-COMMENT = 
-    | comment_inline
-    | comment_multiline
-@syntax_type_hook(comment)
-comment_inline = "//!"
-comment_block = "//+" ~ "//-"
-@syntax_type_hook()
-
-//! ===================== HOOK AREA ============================
-
-// All elements defined next will warp with `@token`
-@define_hook(@token)
-// All elements defined next will be marked as `keyword`
-@syntax_type_hook(keyword)
-fragment = "fragment!"
-grammar  = "grammar!"
-ignore   = "ignore!"
-import   = "import!"
-macro    = "macro!"
-as       = "as"
-// clean warp broadcast
-@syntax_type_hook()
-// clean syntax type broadcast
-@define_hook()
-// clean all hook
-@clear_hook()
+union Statement {
+    | GrammarStatement
+    | ClassStatement
+    | UnionStatement
+    | GroupStatement
+}
+// === grammar === -----------------------------------------------------------------------------------------------------
+class GrammarStatement {
+    ^KW_GRAMMAR Identifier GrammarDict
+}
+union GrammarTerm {
+    | GrammarPair
+    | [,;]
+}
+class GrammarPair {
+    key:Identifier ':' GrammarValue
+}
+union GrammarValue {
+    | GrammarDict
+    | GrammarList
+    | Namepath
+    | StringRaw
+    | StringNormal
+}
+class GrammarDict {
+    '{' GrammarTerm* '}'
+}
+class GrammarList {
+    | '(' (GrammarValue (',' GrammarValue)* ','?)? ')'
+    | '[' (GrammarValue (',' GrammarValue)* ','?)? ']'
+}
+inline class GrammarListTerms {
+    GrammarValue (',' GrammarValue)* ','?
+}
+// === class === -----------------------------------------------------------------------------------------------------
+class ClassStatement {
+    DecoratorCall* ModifierCall* ^KW_CLASS (name:Identifier) ('->' cast:Identifier)? OP_REMARK? ClassBlock
+}
+class ClassBlock {
+    '{' '|'? Expression '}'
+}
+token {
+    OP_REMARK = '^'
+}
+// === union === -----------------------------------------------------------------------------------------------------
+class UnionStatement {
+    DecoratorCall* ModifierCall* ^KW_UNION (name:Identifier) OP_REMARK? UnionBlock
+}
+class UnionBlock {
+    '{' UnionBranch* '}'
+}
+class UnionBranch {
+    '|' ExpressionHard BranchTag?
+}
+@style(field)
+atomic class BranchTag {
+    '#' Identifier RightAssociativity?
+}
+class RightAssociativity {
+    '>'
+}
+// === group === -------------------------------------------------------------------------------------------------------
+class GroupStatement {
+    DecoratorCall* ModifierCall* ^KW_GROUP Identifier? GroupBlock
+}
+class GroupBlock {
+    '{' GroupPair* '}'
+}
+class GroupPair {
+    Identifier ':' Atomic
+}
+// === decorators === --------------------------------------------------------------------------------------------------
+class DecoratorCall {
+    DecoratorName CallBody
+}
+@style(annotation)
+class DecoratorName {
+    [@#] Identifier
+}
+class FunctionCall {
+    FunctionName CallBody
+}
+@style(function)
+class FunctionName {
+    '@' Identifier
+}
+class CallBody {
+    '(' (Expression (',' Expression)* ','?)? ')'
+}
+// === expression === --------------------------------------------------------------------------------------------------
+//climb Expression {
+//    | Expression '|' Expression #Or
+//    | Expression '~' Expression #Hard
+//    | Expression Expression     #Soft
+//    | (Identifier ':')? (Prefix* Atomic Suffix*)  #Tag
+//}
+class Expression     { ExpressionHard ('|' ExpressionHard)* }
+class ExpressionHard { ExpressionSoft ('~' ExpressionSoft)* }
+class ExpressionSoft { ExpressionTag ExpressionTag* }
+class ExpressionTag  { (Identifier ':')? Term }
+class Term {
+    Prefix* Atomic Suffix*
+}
+union Prefix {
+    | '!' #Negative
+    | '&' #Positive
+    | '^' #Remark
+}
+union Suffix {
+    | '?' #Optional
+    | '*' #Many
+    | '+' #Many1
+    | RangeExact
+    | Range
+}
+// === atoms === -------------------------------------------------------------------------------------------------------
+union Atomic {
+    | GroupExpression
+    | FunctionCall
+    | Boolean
+    | Integer
+    | StringRaw
+    | StringNormal
+    | Category
+    | EscapedUnicode
+    | RegexEmbed
+    | RegexRange
+    | Identifier
+}
+class GroupExpression {
+    '(' '|'? Expression ')'
+}
+// === String === -------------------------------------------------------------------------------------------------------
+atomic class StringRaw {
+    "'" StringRawText "'"
+}
+class StringRawText {
+    /[^']*/
+}
+atomic class StringNormal {
+    '"' StringItem* '"'
+}
+union StringItem {
+    | EscapedUnicode
+    | EscapedCharacter
+    | TextAny
+}
+@style(escape)
+atomic class EscapedUnicode {
+    /\\u\{[0-9a-fA-F]*\}/
+}
+@style(escape)
+atomic class EscapedCharacter {
+    '\' ANY
+}
+class TextAny {
+    /[^"\\]+/
+}
+// === regex === -------------------------------------------------------------------------------------------------------
+atomic class RegexEmbed {
+    '/' RegexItem+ '/'
+}
+union RegexItem {
+    | EscapedCharacter
+    | RegexCharacter
+}
+atomic class RegexCharacter {
+    !'/' ANY
+}
+atomic class RegexRange {
+    '[' RegexNegative? (!']' ANY)* ']'
+}
+class RegexNegative {
+    '^'
+}
+// === unicode category === --------------------------------------------------------------------------------------------------
+class Category {
+    ^OP_CATEGORY '{' (group:Identifier '=')? script:Identifier '}'
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+class NamepathFree -> Namepath {
+    Identifier (('.' | '::') Identifier)*
+}
+class Namepath {
+    Identifier ('::' Identifier)*
+}
+class Identifier {
+    /[_\p{XID_start}]\p{XID_continue}*/
+}
+union Boolean {
+    | 'true'  #True
+    | 'false' #False
+}
+// === number === ----------------------------------------------------------------------------------------------------
+class Integer {
+    /0|[1-9][0-9]*/
+}
+class RangeExact {
+    '{' Integer '}'
+}
+class Range {
+    '{' (min:Integer)? ',' (max:Integer)? '}'
+}
+// === keywords === ----------------------------------------------------------------------------------------------------
+atomic class ModifierCall ^ {
+    !(KW_CLASS | KW_UNION | KW_GROUP | KW_MACRO | KW_CLIMB) ^Identifier
+}
+@railway(false)
+@style(keyword)
+token {
+    OP_CATEGORY = '\p'
+}
+@railway(false)
+@style(keyword)
+union KW_EXTERNAL {
+    | 'parser'    #Parser
+    | 'inspector' #Inspector
+    | 'external'  #External
+}
+@railway(false)
+@style(keyword)
+token {
+    KW_GRAMMAR = /grammar/
+    KW_IMPORT  = /using|use|import/
+    KW_CLASS   = /class|struct/
+    KW_UNION   = /union|enum/
+    KW_GROUP   = /group|token/
+    KW_CLIMB   = /climb/
+    KW_MACRO   = /macro|def|function|func|fun|fn/
+}
+// === ignores === -----------------------------------------------------------------------------------------------------
+@railway(false)
+hide class WhiteSpace {
+    /\p{White_Space}+/
+}
+@style(comment)
+hide class Comment {
+    | /\/\/[^\n\r]*/
+    | '/*'  '*/'
+}
 
