@@ -1,0 +1,955 @@
+grammar Valkyrie {
+    patterns: ("*.vk", "*.valkyrie"),
+    parser: {
+        text_raw: {
+            rust: crate::helpers::parse_text_raw
+        }
+    }
+}
+// === statements === -----------------------------------------------------------------
+atomic class Program {
+    SOI ~ Shebang? (HIDE Statement)* ~ EOI
+}
+// === statements === -----------------------------------------------------------------
+union Statement {
+    // top level statements
+    | DefineNamespace
+    | DefineClass
+    | DefineUnion
+    | DefineEnumerate
+    | DefineTrait
+    | DefineExtends
+    | DefineFunction
+    | DefineVariable
+    // continuation level statements
+    | DefineImport
+    | ControlFlow
+    | WhileStatement
+    | ForStatement
+    | ExpressionRoot
+    | EOS
+}
+/// Used to isolate expressions and control whether to output the expression
+union EOS ^ {
+    | [;；]   #Omit
+    | /⁏|;;/  #Show
+}
+/// Used to isolate expressions, has no practical meaning
+class EOS_FREE {
+    [,，;；⁏]
+}
+// === namespace === -----------------------------------------------------------------
+class DefineNamespace {
+    ^KW_NAMESPACE OP_NAMESPACE? NamepathFree ^EOS?
+}
+
+@style(keyword)
+union OP_NAMESPACE {
+    | '!' #Main
+    | '?' #Test
+    | '*' #Hide
+}
+// === import === -----------------------------------------------------------------
+class DefineImport {
+    AnnotationTerm* ^KW_IMPORT (
+        | EOS_FREE
+        | ImportBlock EOS_FREE?
+        | ImportTerm EOS_FREE?
+    )
+}
+class ImportBlock  {
+    '{' ImportTerm* '}'
+}
+union ImportTerm {
+    | ImportAll
+    | ImportSpace
+    | ImportName
+    | EOS_FREE
+}
+/// `import package∷module∷*`
+class ImportAll ^ {
+    (path:Identifier NS_CONCAT)+ OP_IMPORT_ALL
+}
+/// `import` package.module.name { space }
+class ImportSpace ^ {
+    path:Identifier (NS_CONCAT path:Identifier)* NS_CONCAT? body:ImportBlock
+}
+/// import package::module::@macro as @macro
+/// import package::module::macro as @macro
+class ImportName ^ {
+    (path:Identifier NS_CONCAT)* item:ImportNameItem alias:ImportAs
+}
+// import package∷module∷item as alias
+class ImportAs ^ {
+    (KW_AS alias:ImportNameItem)?
+}
+atomic union ImportNameItem {
+    | ProceduralName
+    | AttributeName
+    | Identifier
+}
+// === template === ----------------------------------------------------------------------------------------------------
+
+// === template === ----------------------------------------------------------------------------------------------------
+class DefineConstraint {
+    AnnotationHead
+    KW_CONSTRAINT ConstraintParameters? ConstraintBlock
+}
+class ConstraintParameters {
+    | Identifier (^COMMA Identifier)* ^COMMA?
+    | '<' Identifier (^COMMA Identifier)* ^COMMA? '>'
+    | '⟨' Identifier (^COMMA Identifier)* ^COMMA? '⟩'
+}
+class ConstraintBlock {
+    '{' (ConstraintStatement | ConstraintImplements | EOS_FREE)* '}'
+}
+class ConstraintStatement {
+    WhereBlock
+    //  | KW_RETURN TypeExpression
+    //  | Identifier RequireBlock
+}
+class ConstraintImplements {
+    KW_IMPLEMENTS // TypeExpression
+}
+class WhereBlock {
+    KW_WHERE '{' WhereBound* '}'
+}
+class WhereBound {
+    //    | Identifier COLON TypeExpression
+    | EOS_FREE
+}
+//class RequireBlock {
+//    '{' (ExpressionRoot | EOS_FREE)* '}'
+//}
+// === classes === -----------------------------------------------------------------------------------------------------
+class DefineClass {
+    DefineConstraint?
+    AnnotationHead
+    KW_CLASS Identifier DefineGeneric? DefineInherit? TypeHint ClassBlock ^EOS?
+}
+class ClassBlock {
+    '{' ClassTerm* '}'
+}
+union ClassTerm {
+    | ProceduralCall
+    | DefineMethod
+    | DefineDomain
+    | DefineField
+    | EOS_FREE
+}
+@style(keyword)
+@railway(false)
+text class KW_CLASS {
+    'class' | 'structure'
+}
+// === field/method/domain === -----------------------------------------------------------------------------------------
+class DefineField {
+    AnnotationMix
+    Identifier TypeHint ParameterDefault
+}
+class ParameterDefault {
+    ('=' MainExpression)?
+}
+class DefineMethod {
+    AnnotationMix Identifier FunctionMiddle Continuation?
+}
+class DefineDomain {
+    AnnotationMix
+    DomainTerm '{' Statement* '}'
+}
+union DomainTerm {
+    | Identifier
+}
+class DefineInherit {
+    '(' (InheritTerm (',' InheritTerm)* ','?)? ')'
+}
+class InheritTerm {
+    AnnotationMix TypeExpression
+}
+// === object statement === --------------------------------------------------------------------------------------------
+class ObjectStatement {
+    KW_OBJECT DefineInherit? TypeHint ClassBlock ^EOS?
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+class DefineEnumerate {
+    AnnotationHead
+    KW_FLAGS Identifier DefineInherit? TypeHint '{' FlagTerm* '}'
+}
+union FlagTerm {
+    | ProceduralCall
+    | DefineMethod
+    | FlagField
+    | EOS_FREE
+}
+class FlagField {
+    AnnotationTerm* Identifier ParameterDefault
+}
+@style(keyword)
+@railway(false)
+text class KW_FLAGS {
+    'enumerate' | 'flags'
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+class DefineUnion {
+    DefineConstraint?
+    AnnotationHead
+    KW_UNION Identifier DefineGeneric? DefineInherit? TypeHint '{' UnionTerm* '}'
+}
+union UnionTerm {
+    | ProceduralCall
+    | DefineMethod
+    | DefineVariant
+    | EOS_FREE
+}
+class DefineVariant {
+    AnnotationTerm*
+    Identifier ClassBlock?
+}
+@style(keyword)
+class KW_UNION {
+    'union'
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+class DefineTrait {
+    DefineConstraint?
+    AnnotationHead
+    KW_TRAIT Identifier DefineGeneric? DefineInherit? TypeHint TraitBlock ^EOS?
+}
+class DefineExtends {
+    DefineConstraint?
+    AnnotationHead
+    KW_EXTENDS TypeExpression TypeHint TraitBlock ^EOS?
+}
+class TraitBlock {
+    '{' TraitTerm* '}'
+}
+union TraitTerm {
+    | ProceduralCall
+    | DefineMethod
+    | DefineField
+    | EOS_FREE
+}
+@style(keyword)
+union KW_TRAIT {
+    | 'trait'     #Trait
+    | 'interface' #Interface
+}
+// === def function === ------------------------------------------------------------------------------------------------
+class DefineFunction {
+    AnnotationHead KW_FUNCTION Identifier FunctionMiddle Continuation
+}
+class DefineLambda {
+    AnnotationTerm*
+    KW_LAMBDA FunctionMiddle Continuation
+}
+class FunctionMiddle {
+    DefineGeneric? '(' FunctionParameters ')' TypeReturn? TypeEffect?
+}
+class TypeHint ^ {
+    (COLON hint:TypeExpression)?
+}
+class TypeReturn {
+    ARROW1 TypeExpression
+}
+class TypeEffect {
+    '/' TypeExpression
+}
+atomic class FunctionParameters {
+    (ParameterItem (HIDE ^COMMA ~ ParameterItem)* (HIDE ^COMMA)?)?
+}
+union ParameterItem {
+    | ParameterItemControl
+    | ParameterPair
+}
+text class ParameterItemControl {
+    /[<「」>]|\.{2,3}/
+}
+class ParameterPair {
+    ModifierAhead* ParameterHint?
+    Identifier TypeHint ParameterDefault
+}
+text class ParameterHint {
+    /[.]{2,3}|[%^]/
+}
+class Continuation {
+    '{' Statement* '}'
+}
+@style(keyword)
+@railway(false)
+text class KW_FUNCTION {
+    /micro|macro|function|func|fun|fn/
+}
+// === let variable === ------------------------------------------------------------------------------------------------
+class DefineVariable {
+    AnnotationTerm*
+    KW_LET LetPattern TypeHint ParameterDefault ^EOS?
+}
+union LetPattern {
+    | StandardPattern
+    | BarePattern
+}
+// === patterns === ------------------------------------------------------------------------------------------------
+union StandardPattern {
+    | TuplePattern
+}
+/// `mut a, mut ..c`
+class BarePattern {
+    BarePatternItem (^COMMA BarePatternItem)* ^COMMA?
+}
+class BarePatternItem {
+    ModifierAhead* Identifier
+}
+/// `Class(a, mut b, #mut c, ..d, e: Some(_))`
+class TuplePattern {
+    | Namepath? '(' (PatternItem (^COMMA PatternItem)* ^COMMA?)? ')'
+    | Namepath? '{' (PatternItem (^COMMA PatternItem)* ^COMMA?)? '}'
+    | '[' (PatternItem (^COMMA PatternItem)* ^COMMA?)? ']'
+}
+union PatternItem {
+    | TuplePatternItem
+    | '...' #OmitDict
+    | '..'  #OmitList
+}
+class TuplePatternItem {
+    AnnotationMix ParameterHint? Identifier (COLON StandardPattern)?
+}
+// === while loop === --------------------------------------------------------------------------------------------------
+class WhileStatement {
+    KW_WHILE InlineExpression? Continuation ^EOS?
+}
+@style(keyword)
+union KW_WHILE {
+    | 'while' #While
+    | 'until' #Until
+}
+// === for loop === ----------------------------------------------------------------------------------------------------
+class ForStatement {
+    KW_FOR LetPattern KW_IN InlineExpression? IfGuard Continuation ^EOS?
+}
+class IfGuard ^ {
+    (KW_IF condition:InlineExpression)?
+}
+// === controls === ----------------------------------------------------------------------------------------------------
+class ControlFlow {
+    AnnotationTerm*
+    KW_CONTROL JumpLabel MainExpression?
+}
+atomic class JumpLabel {
+    ('^' Identifier)?
+}
+// === expression === --------------------------------------------------------------------------------------------------
+class ExpressionRoot {
+    AnnotationTerm* MainExpression OP_AND_THEN? EOS?
+}
+// === match/catch/switch === ------------------------------------------------------------------------------------------
+class MatchExpression {
+    KW_MATCH (
+        | (Identifier BIND_L)? InlineExpression
+        | InlineExpression (BIND_R Identifier)?
+    )
+    MatchBlock
+}
+class SwitchStatement {
+    KW_SWITCH MatchBlock
+}
+class MatchBlock {
+    '{' MatchTerms* '}'
+}
+union MatchTerms {
+    | MatchType
+    | MatchCase
+    | MatchWhen
+    | MatchElse
+    | COMMA
+}
+class MatchType {
+    KW_TYPE TypeExpression IfGuard ^COLON MatchStatement*
+}
+class MatchCase {
+    KW_CASE CasePattern IfGuard ^COLON MatchStatement*
+}
+union CasePattern {
+    | StandardPattern
+    | Namepath
+}
+class MatchWhen {
+    KW_WHEN InlineExpression ^COLON MatchStatement*
+}
+class MatchElse {
+    KW_ELSE ^COLON MatchStatement*
+}
+atomic class MatchStatement {
+    !/type|case|when|else|[,，]/
+    Statement
+}
+@style(keyword)
+union KW_MATCH {
+    | 'match' #Match
+    | 'catch' #Catch
+}
+@style(operator)
+token {
+    BIND_L: /≔|:=/
+    BIND_R: /≕|=:/
+}
+// === match dot call === ----------------------------------------------------------------------------------------------
+atomic class DotMatchCall {
+    OP_AND_THEN? ~ ^DOT ^WhiteSpace? KW_MATCH (^WhiteSpace? BIND_R ^WhiteSpace? Identifier)? ^WhiteSpace? MatchBlock
+}
+// === expression === --------------------------------------------------------------------------------------------------
+atomic class MainExpression {
+    MainTerm (HIDE MainInfix ~ MainTerm)*
+}
+atomic class MainTerm {
+    (MainPrefix HIDE)* MainFactor MainSuffixTerm*
+}
+
+union MainFactor {
+    | SwitchStatement
+    | TryStatement
+    | MatchExpression
+    | DefineLambda
+    | ObjectStatement
+    | NewStatement
+    | GroupFactor
+    | Leading
+}
+atomic class GroupFactor {
+    '(' ~ MainExpression ~ ')'
+}
+union Leading {
+    | ProceduralCall
+    | TupleLiteralStrict
+    | RangeLiteral
+    | TextLiteral
+    | Slot
+    | Number
+    | Special
+    | Namepath
+}
+@railway(false)
+atomic union MainSuffixTerm {
+    | HIDE DotMatchCall
+    | HIDE DotClosureCall
+    | TupleCall
+    | InlineSuffixTerm
+}
+// === operators === ---------------------------------------------------------------------------------------------------
+@railway(false)
+@style(operator)
+text class MainPrefix {
+    / [¬!+]
+    | [-]
+    | [.]{2,3}
+    | [⅟]
+    | [√∛∜]
+    | [&*]
+    /
+}
+@railway(false)
+@style(operator)
+text class TypePrefix {
+    / [-+¬]
+    | [&^]
+    /
+}
+@railway(false)
+@style(operator)
+text class MainInfix ^ {
+    / [+\\-*٪⁒÷\/%]=?
+    | \/%=? | %%=?
+    | [√^]
+    # start with ?, !, =
+    | [?]=
+    | !==|=!=|===|==|!=|=|[!≢≠≡]
+    # start with `<, >`
+    | <<<|<<=|<<|<=|[⋘≪⩽≤<]
+    | >>>|>>=|>>|>=|[⋙≫⩾≥>]
+    # start with &, |
+    | [&|]{1,3}
+    | [∧⊼⩟∨⊽⊻]
+    # start with .
+    | [.]{1,2}[<=]
+    | [.]=
+    | [∈∊∉∋∍∌]
+    | (not\s+)?in
+    | is(\s+not)?
+    | as[*!?]?
+    # map, apply
+    | \/@ | [⇴⨵⊕⟴] | @{2,3}
+    /
+}
+@railway(false)
+@style(operator)
+text class TypeInfix {
+    / [⟶]
+    | ->
+    | [-+&|∧∨]
+    /
+}
+@railway(false)
+@style(operator)
+text class MainSuffix {
+    / [!]
+    | [٪⁒%‰‱]
+    | [′″‴⁗]
+    | [℃℉]
+    /
+}
+@railway(false)
+@style(operator)
+text class TypeSuffix {
+    /[!?]/
+}
+// === inline expression === --------------------------------------------------------------------------------------------------
+atomic class InlineExpression {
+    InlineTerm (HIDE MainInfix ~ InlineTerm)*
+}
+atomic class InlineTerm {
+    (MainPrefix HIDE)* MainFactor InlineSuffixTerm*
+}
+union InlineSuffixTerm {
+    | HIDE MainSuffix #MainSuffix
+    | HIDE DotCall    #DotCall
+    | InlineTupleCall
+    | RangeCall
+    | GenericCall
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+atomic class TypeExpression {
+    TypeTerm (HIDE TypeInfix ~ TypeTerm)*
+}
+atomic class TypeTerm {
+    (TypePrefix HIDE)* MainFactor TypeSuffixTerm*
+}
+atomic union TypeFactor {
+    | '(' ~ TypeExpression ~ ')' #TypeExpression
+    | Leading
+}
+union TypeSuffixTerm {
+    | GenericHide
+    | TypeSuffix
+}
+// === try statement === -----------------------------------------------------------------------------------------------
+class TryStatement {
+    KW_TRY TypeExpression? Continuation
+}
+// === new statement === -----------------------------------------------------------------------------------------------
+class NewStatement {
+    KW_NEW ModifierAhead* Namepath GenericHide? TupleLiteral? NewBlock? ^EOS?
+}
+class NewBlock {
+    '{' (NewPair (EOS_FREE NewPair)* EOS_FREE?)? '}'
+}
+atomic class NewPair {
+    (NewPairKey ~ COLON HIDE)? MainExpression
+}
+union NewPairKey {
+    | Identifier
+    | TextRaw
+    | RangeLiteral
+}
+// === dot === ---------------------------------------------------------------------------------------------------------
+atomic class DotCall {
+    OP_AND_THEN? ~ ^DOT ^WhiteSpace? DotCallItem
+}
+union DotCallItem {
+    | Namepath
+    | Integer
+}
+// === dot === ---------------------------------------------------------------------------------------------------------
+atomic class DotClosureCall {
+    OP_AND_THEN? ~ ^DOT ^WhiteSpace? Continuation
+}
+// === tuple === -------------------------------------------------------------------------------------------------------
+atomic class InlineTupleCall {
+    ^WhiteSpace? OP_AND_THEN? ^WhiteSpace? TupleLiteral
+}
+atomic class TupleCall {
+    ^WhiteSpace? OP_AND_THEN? ^WhiteSpace? (
+        | TupleLiteral (^WhiteSpace? Continuation)?
+        | Continuation
+    )
+}
+class TupleLiteral {
+    '(' TupleTerms ')'
+}
+atomic class TupleLiteralStrict {
+    | '(' ~ ')'
+    | '(' ~ TuplePair ~ ^COMMA ~ ')'
+    | '(' ~ TuplePair (HIDE ^COMMA ~ TuplePair)* (HIDE ^COMMA)? ~ ')'
+}
+atomic class TupleTerms {
+    (TuplePair (HIDE ^COMMA ~ TuplePair)* (HIDE ^COMMA)?)?
+}
+class TuplePair {
+    (TupleKey COLON)? MainExpression
+}
+union TupleKey {
+    | Identifier
+    | Integer
+    | TextRaw
+}
+// === range === -------------------------------------------------------------------------------------------------------
+atomic class RangeCall {
+    ^WhiteSpace? OP_AND_THEN? ^WhiteSpace? RangeLiteral
+}
+union RangeLiteral {
+    | RangeLiteralIndex0
+    | RangeLiteralIndex1
+}
+class RangeLiteralIndex0 {
+    '⁅' (SubscriptAxis (^COMMA SubscriptAxis)* ^COMMA?)? '⁆'
+}
+class RangeLiteralIndex1 {
+    '[' (SubscriptAxis (^COMMA SubscriptAxis)* ^COMMA?)? ']'
+}
+union SubscriptAxis {
+    | SubscriptRange
+    | SubscriptOnly
+}
+class SubscriptOnly {
+    index:MainExpression
+}
+atomic class SubscriptRange ^ {
+    (head:MainExpression HIDE)? (
+        | RangeOmit (HIDE step:MainExpression)?
+        | COLON (HIDE tail:MainExpression (HIDE COLON (HIDE step:MainExpression)?)?)?
+    )
+}
+atomic inline class RangeOmit {
+    PROPORTION | COLON ~ COLON
+}
+// === generic define === ----------------------------------------------------------------------------------------------
+class DefineGeneric {
+    | PROPORTION? '<' GenericParameter '>'
+    | '⟨' GenericParameter '⟩'
+}
+atomic class GenericParameter {
+    (GenericParameterPair (HIDE ^COMMA ~ GenericParameterPair)* (HIDE ^COMMA)?)?
+}
+class GenericParameterPair {
+    Identifier (^COLON bound:TypeExpression)? ('=' default:TypeExpression)?
+}
+// === generic call === ------------------------------------------------------------------------------------------------
+class GenericCall {
+    OP_AND_THEN? (
+        | PROPORTION '<' GenericTerms '>'
+        | '⟨' GenericTerms '⟩'
+    )
+    (PROPORTION Namepath)?
+}
+class GenericHide {
+    | PROPORTION? '<' GenericTerms '>'
+    | '⟨' GenericTerms '⟩'
+}
+atomic class GenericTerms {
+    (GenericPair (HIDE ^COMMA ~ GenericPair)* (HIDE ^COMMA)?)?
+}
+class GenericPair {
+    (Identifier COLON)? TypeExpression
+}
+// === annotation === --------------------------------------------------------------------------------------------------
+class AnnotationHead {
+    AnnotationTerm* ModifierCall*
+}
+class AnnotationMix {
+    AnnotationTermMix* ModifierAhead*
+}
+union AnnotationTerm {
+    | AttributeList
+    | AttributeCall
+}
+union AnnotationTermMix {
+    | AttributeList
+    | AttributeCall
+    | ProceduralCall
+}
+class AttributeList {
+    '#' '[' (AttributeItem (HIDE ^EOS_FREE ~ AttributeItem)* (HIDE ^EOS_FREE)?)? ']'
+}
+// #call.variant(...) { domain }
+atomic class AttributeCall {
+    '#' AttributeItem
+}
+class AttributeItem {
+    Namepath (^DOT Identifier)*
+    TupleLiteral? Continuation?
+}
+atomic class AttributeName {
+    '#' Identifier
+}
+// @call(...) { domain }
+atomic class ProceduralCall {
+    '@' Namepath ~ TupleLiteral? ~ Continuation?
+}
+atomic class ProceduralName {
+    '@' Identifier
+}
+// === text === ------------------------------------------------------------------------------------------------------
+atomic class TextLiteral {
+    Identifier? TextRaw
+}
+@parser(text_raw)
+fake atomic class TextRaw {
+    | '""""' TEXT_CONTENT5 '""""'
+    | "''''" TEXT_CONTENT6 "''''"
+    | '"""' TEXT_CONTENT3 '"""'
+    | "'''" TEXT_CONTENT4 "'''"
+    | '"' TEXT_CONTENT1 '"'
+    | "'" TEXT_CONTENT2 "'"
+}
+fake class Text_L { HIDE }
+fake class Text_R { HIDE }
+fake class Text_X { HIDE }
+text atomic class TEXT_CONTENT1 { [^"]* }
+text atomic class TEXT_CONTENT2 { [^']* }
+text atomic class TEXT_CONTENT3 { (!'"""' ANY)+ }
+text atomic class TEXT_CONTENT4 { (!"'''" ANY)+ }
+text atomic class TEXT_CONTENT5 { (!'""""' ANY)+ }
+text atomic class TEXT_CONTENT6 { (!"''''" ANY)+ }
+// === modifier === --------------------------------------------------------------------------------------------------
+atomic class ModifierCall ^ {
+    !KEYWORDS_STOP ^Identifier
+}
+atomic class ModifierAhead -> ModifierCall ^ {
+    !IDENTIFIER_STOP ^Identifier
+}
+@railway(false)
+class KEYWORDS_STOP {
+    / template | generic | constraint
+    | class | structure
+    | enumerate | flags | union
+    | function | micro | macro
+    | trait | interface
+    | extends?
+    /
+}
+@railway(false)
+atomic class IDENTIFIER_STOP {
+    Identifier ~ /[\[\](){}<>⟨:∷,.;∈=]|in|is/
+}
+// === identifier === --------------------------------------------------------------------------------------------------
+atomic class Slot {
+    OP_SLOT SlotItem?
+}
+union SlotItem {
+    | Integer
+    | Identifier
+}
+atomic class NamepathFree  {
+    Identifier (HIDE ^PROPORTION2 ~ Identifier)*
+}
+atomic class Namepath {
+    Identifier (HIDE ^PROPORTION ~ Identifier)*
+}
+atomic union Identifier {
+    | IdentifierBare
+    | IdentifierRaw
+}
+text class IdentifierBare {
+    /[_\p{XID_start}]\p{XID_continue}*/
+}
+atomic class IdentifierRaw {
+    '`' IdentifierRawText '`'
+}
+text class IdentifierRawText {
+    [^`]+
+}
+text class Special {
+    /[∅∞]|true|false|[?]{3}/
+}
+// === number === ------------------------------------------------------------------------------------------------------
+union Number {
+    | DecimalX
+    | Decimal
+}
+union Sign {
+    | '+' #Positive
+    | '-' #Netative
+}
+text class Integer {
+    /[0-9](_*[0-9])*/
+}
+text class DigitsX {
+    /[0-9a-zA-Z](_*[0-9a-zA-Z])*/
+}
+atomic class Decimal ^ {
+    (lhs:Integer (dot:DOT rhs:Integer)?)
+    (/[⁑]|[*]{2}/ (sign:Sign)? shift:Integer)?
+    (/[_]*/ unit:Identifier)?
+}
+atomic class DecimalX ^ {
+    base:Integer /[⁂]|[*]{3}/
+    (lhs:DigitsX (dot:DOT rhs:DigitsX)?)
+    (/[⁑]|[*]{2}/ (
+        | (sign:Sign)? shift:Integer (/[_]*/ unit:Identifier)?
+        | unit:Identifier
+    ))?
+}
+// === keywords === ----------------------------------------------------------------------------------------------------
+@railway(false)
+atomic token {
+    PROPORTION: /∷|::/
+    NS_CONCAT: /[.∷]|::/
+    COLON: [:：]
+    ARROW1: /[:：⟶]|->/
+    COMMA: [,，]
+    DOT:   [.．]
+    OP_SLOT: /[$]{1,3}/
+    // brackets
+    OFFSET_L: '⁅'
+    OFFSET_R: '⁆'
+}
+class PROPORTION2 -> PROPORTION {
+    /[.．∷]|::/
+}
+@railway(false)
+@style(keyword)
+token {
+    OP_IMPORT_ALL: '*'
+    OP_AND_THEN: '?'
+    OP_BIND: /≔|:=/
+}
+@railway(false)
+@style(keyword)
+text class KW_CONTROL {
+    / continue
+    | break
+    | fallthrough!?
+    | raise | throw
+    | return
+    | resume
+    | yield\s+break
+    | yield\s+from
+    | yield\s+wait
+    | yield(\s+return)?
+    /
+}
+@railway(false)
+@style(keyword)
+token {
+    KW_NAMESPACE: 'namespace'
+    KW_IMPORT: 'using'
+    // === class === ---------------------------------------------------------------------------------------------------
+    KW_CONSTRAINT: /template|generic|constraint|∀/
+    KW_WHERE: 'where'
+    KW_IMPLEMENTS: /implements?/
+    KW_EXTENDS: /extends?/
+    KW_INHERITS: /inherits?/
+    // === looping === -------------------------------------------------------------------------------------------------
+    KW_FOR: 'for'
+    KW_END: 'end'
+    // === constructor === ---------------------------------------------------------------------------------------------
+    KW_LET: 'let'
+    KW_NEW: 'new'
+    KW_OBJECT: 'object'
+    KW_LAMBDA: 'lambda'
+    // === if/switch/catch/match === -----------------------------------------------------------------------------------
+    KW_IF: 'if'
+    KW_SWITCH: 'switch'
+    KW_TRY: 'try'
+    KW_TYPE: 'type'
+    KW_CASE: 'case'
+    KW_WHEN: 'when'
+    KW_ELSE: 'else'
+    // === operators === -----------------------------------------------------------------------------------------------
+    KW_NOT: 'not'
+    KW_IN: /in|∈/
+    KW_IS: 'is'
+    KW_AS: 'as'
+}
+// === ignores === -----------------------------------------------------------------------------------------------------
+atomic class Shebang {
+    '#!' ROL
+}
+@railway(false)
+class WhiteSpace {
+    /[^\\S\r\n]+/
+}
+@railway(false)
+hide class SkipSpace {
+    /\p{White_Space}+/
+}
+@style(comment)
+hide class Comment {
+    | /[⍝🗨]|\\{2}/ ROL
+    | '🗨🗨🗨' '🗩🗩🗩'
+}
+// ============================-----------------------------------------------------------------------------------------
+// === string interpolation === ----------------------------------------------------------------------------------------
+// ============================-----------------------------------------------------------------------------------------
+atomic class StringInterpolations {
+    StringInterpolationTerm* EOI
+}
+union StringInterpolationTerm {
+    | EscapeUnicode
+    | EscapeCharacter
+    | StringInterpolationSimple
+    | StringInterpolationComplex
+    | StringInterpolationText
+}
+atomic text class EscapeCharacter {
+    /\\\\.|\{\{|\}\}/
+}
+atomic class EscapeUnicode {
+    '\u' '{' ~ code:EscapeUnicodeCode ~ '}'
+}
+text class EscapeUnicodeCode {
+    /[0-9a-zA-Z]*/
+}
+class StringInterpolationSimple {
+    '{' MainExpression (^COLON StringFormatter)? '}'
+}
+text class StringInterpolationText {
+    /[^{}\\\\]+/
+}
+text class StringFormatter {
+    /[^}]+/
+}
+/// `{ expression, 'argument', time: A }`
+class StringInterpolationComplex {
+    '{' MainExpression (^COMMA TuplePair)* ^COMMA? '}'
+}
+// =======================----------------------------------------------------------------------------------------------
+// === string template === ---------------------------------------------------------------------------------------------
+// =======================----------------------------------------------------------------------------------------------
+atomic class StringTemplates {
+    StringTemplateTerm* EOI
+}
+union StringTemplateTerm {
+    | ForTemplate
+    | ExpressionTemplate
+}
+class ExpressionTemplate {
+    TEMPLATE_S MainExpression TEMPLATE_E
+}
+// === string template === ---------------------------------------------------------------------------------------------
+// === for template === ---------------------------------------------------------------------------------------------
+atomic class ForTemplate {
+    ForTemplateBegin ForTemplateElse? ForTemplateEnd
+}
+class ForTemplateBegin {
+    TEMPLATE_S KW_FOR LetPattern KW_IN InlineExpression? IfGuard TEMPLATE_E
+}
+class ForTemplateElse {
+    TEMPLATE_S KW_ELSE TEMPLATE_E
+}
+class ForTemplateEnd {
+    TEMPLATE_S KW_END KW_FOR? TEMPLATE_E
+}
+
+@railway(false)
+atomic class TEMPLATE_S {
+    ^TEMPLATE_L TEMPLATE_M?
+}
+@railway(false)
+atomic class TEMPLATE_E {
+    TEMPLATE_M? ^TEMPLATE_R
+}
+@railway(false)
+token {
+    TEMPLATE_L: '<%'
+    TEMPLATE_R: '%>'
+    TEMPLATE_M: [-_~.=]
+}
