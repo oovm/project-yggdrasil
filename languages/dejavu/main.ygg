@@ -1,4 +1,6 @@
-grammar Dejavu {}
+grammar Dejavu {
+    file: "*.djv"
+}
 
 
 union Root {
