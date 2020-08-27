@@ -1,5 +1,5 @@
-grammar Json5 {
-    file: '*.json5'
+grammar antlr4 {
+    file: '*.g4'
 }
 
 entry union Value {

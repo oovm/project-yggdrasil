@@ -1,4 +1,4 @@
-grammar Dejavu {
+grammar dejavu {
     file: "*.djv"
 }
 

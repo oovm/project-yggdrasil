@@ -1,0 +1,79 @@
+grammar bnf {
+    file: "*.bnf"
+}
+
+entry class Grammar {
+    Rule+
+}
+
+class Rule {
+    LHS COLON RHS SEMI
+}
+
+class LHS {
+    Identifier
+}
+
+class RHS {
+    Alternative (PIPE Alternative)*
+}
+
+class Alternative {
+    Term+
+}
+
+class Term {
+    Identifier
+    | Terminal
+    | Nonterminal
+    | Option
+    | Repetition
+    | Grouping
+}
+
+class Terminal {
+    QUOTE TextContent QUOTE
+}
+
+class Nonterminal {
+    ANGLE_L Identifier ANGLE_R
+}
+
+class Option {
+    '<' RHS '>'
+}
+
+class Repetition {
+    '[' RHS ']'
+}
+
+class Grouping {
+    '(' RHS ')'
+}
+
+class TextContent {
+    / [^"\\]* /
+    | Escape
+}
+
+class Escape {
+    '\' ANY
+}
+
+token {
+    COLON: ":";
+    SEMI: ";";
+    PIPE: "|";
+    QUOTE: '"';
+
+    BRACKET_L: "[";
+    BRACKET_R: "]";
+    BRACE_L: "{";
+    BRACE_R: "}";
+    PAREN_L: "(";
+    PAREN_R: ")";
+}
+
+ignore class WhiteSpace {
+    \p{WhiteSpace}
+}

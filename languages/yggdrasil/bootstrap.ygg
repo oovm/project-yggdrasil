@@ -1,4 +1,4 @@
-grammar Bootstrap {
+grammar bootstrap {
     patterns: ('*.ygg')
 }
 

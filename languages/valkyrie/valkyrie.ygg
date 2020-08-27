@@ -1,4 +1,4 @@
-grammar Valkyrie {
+grammar valkyrie {
     patterns: ("*.vk", "*.valkyrie"),
     parser: {
         text_raw: {

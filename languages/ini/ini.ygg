@@ -1,5 +1,6 @@
-grammar Toml {
-    file: ('*.toml')
+grammar ini {
+    display: "Initialization File"
+    file: '*.ini'
 }
 
 entry union Item {
@@ -31,5 +32,5 @@ ignore class WhiteSpace {
 
 @style(comment)
 ignore union Comment {
-    | @comment_line('#')
+    | @comment_line(';')
 }
