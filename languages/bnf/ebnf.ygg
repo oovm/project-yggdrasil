@@ -1,5 +1,5 @@
-grammar bnf {
-    file: "*.bnf"
+grammar ebnf {
+    file: "*.ebnf"
 }
 
 entry class Grammar {
@@ -7,7 +7,7 @@ entry class Grammar {
 }
 
 class Rule {
-    LHS ":" RHS ';'
+    LHS "::=" RHS ";"
 }
 
 class LHS {
@@ -15,7 +15,7 @@ class LHS {
 }
 
 class RHS {
-    Alternative (PIPE Alternative)*
+    Alternative ("|" Alternative)*
 }
 
 class Alternative {
@@ -28,6 +28,7 @@ class Term {
     | Nonterminal
     | Option
     | Repetition
+    | Repetition1
     | Grouping
 }
 
@@ -36,19 +37,23 @@ atomic class Terminal {
 }
 
 class Nonterminal {
-    '<' Identifier '>'
+    "<" Identifier ">"
 }
 
 class Option {
-    '<' RHS '>'
+    "[" RHS "]"
 }
 
 class Repetition {
-    '[' RHS ']'
+    "{" RHS "}"
+}
+
+class Repetition1 {
+    "{" RHS "}+"
 }
 
 class Grouping {
-    '(' RHS ')'
+    "(" RHS ")"
 }
 
 class TextContent {
@@ -57,7 +62,7 @@ class TextContent {
 }
 
 class Escape {
-    '\' ANY
+    "\\" ANY
 }
 
 ignore class WhiteSpace {

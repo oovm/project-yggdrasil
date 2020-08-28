@@ -1,0 +1,4 @@
+grammar abnf {
+    file: "*.abnf"
+}
+}
