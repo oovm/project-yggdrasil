@@ -1,5 +1,5 @@
-grammar protobuf3 {
-    patterns: ('*.proto')
+grammar flatbuffers {
+    patterns: ('*.fbs')
 }
 
 class Root {
