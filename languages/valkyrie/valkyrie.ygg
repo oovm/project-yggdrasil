@@ -868,11 +868,11 @@ class WhiteSpace {
     /[^\\S\r\n]+/
 }
 @railway(false)
-hide class SkipSpace {
+ignore class SkipSpace {
     /\p{White_Space}+/
 }
 @style(comment)
-hide class Comment {
+ignore class Comment {
     | /[⍝🗨]|\\{2}/ ROL
     | '🗨🗨🗨' '🗩🗩🗩'
 }

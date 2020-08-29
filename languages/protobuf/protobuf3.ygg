@@ -12,30 +12,60 @@ union Statement {
     | UnionStatement
     | GroupStatement
 }
+// === import === -----------------------------------------------------------------------------------------------------
+class ImportStatement {
+    ^KW_IMPORT String
+}
 // === message === -----------------------------------------------------------------------------------------------------
 class MessageStatement {
     ^KW_MESSAGE Identifier '{' MessageTerm* '}'
 }
 union MessageTerm {
+    | MessageStatement
     | MessageField
+    | MessageReserved
+    | EnumStatement
     | [;]
 }
 class MessageField {
-    TypeHint field:Identifier '=' Integer
+    KW_REPEATED? TypeHint field:Identifier '=' Integer
+}
+class MessageReserved {
+    ^KW_RESERVED
+}
+// === enum === -----------------------------------------------------------------------------------------------------
+
+class EnumStatement {
+    ^KW_ENUM Identifier '{' MessageTerm* '}'
+}
+// option allow_alias = true;
+union EnumTerm {
+    | EnumPair
+}
+class EnumPair {
+    Identifier '=' Integer
+}
+// === serverse === -----------------------------------------------------------------------------------------------------
+class ServiceStatement {
+    ^KW_SERVICE Identifier '{' MessageTerm* '}'
 }
 
-class TypeHint {
-
-}
 
 
-union GrammarValue {
-    | GrammarDict
-    | GrammarList
+// === type === -----------------------------------------------------------------------------------------------------
+
+union TypeHint {
+    | Map
     | Namepath
-    | StringRaw
-    | StringNormal
 }
+class Map {
+    'map' '<' key:Identifier ',' value:Identifier '>'
+}
+class Namepath {
+    Identifier ('.' Identifier)*
+}
+
+
 class GrammarDict {
     '{' GrammarTerm* '}'
 }
@@ -234,22 +264,21 @@ union KW_EXTERNAL {
 @railway(false)
 @style(keyword)
 token {
-    KW_MESSAGE = /message/
-    KW_IMPORT  = /using|use|import/
-    KW_CLASS   = /class|struct/
-    KW_UNION   = /union|enum/
-    KW_GROUP   = /group|token/
-    KW_CLIMB   = /climb/
-    KW_MACRO   = /macro|def|function|func|fun|fn/
+    KW_MESSAGE  = 'message'
+    KW_RESERVED = 'reserved'
+    KW_ENUM     = 'enum'
+    KW_SERVICE  = 'service'
+    KW_RPC      = 'rpc'
+    KW_RETURNS  = 'returns'
+    KW_OPTION   = 'option'
 }
 // === ignores === -----------------------------------------------------------------------------------------------------
 @railway(false)
-hide class WhiteSpace {
+ignore class WhiteSpace {
     /\p{White_Space}+/
 }
 @style(comment)
-hide class Comment {
-    | /\/\/[^\n\r]*/
-    | '/*'  '*/'
+ignore class Comment {
+    | @comment_line('//')
 }
 

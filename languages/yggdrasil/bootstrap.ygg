@@ -238,11 +238,11 @@ token {
 }
 // === ignores === -----------------------------------------------------------------------------------------------------
 @railway(false)
-hide class WhiteSpace {
+ignore class WhiteSpace {
     /\p{White_Space}+/
 }
 @style(comment)
-hide class Comment {
+ignore class Comment {
     | /\/\/[^\n\r]*/
     | '/*'  '*/'
 }
