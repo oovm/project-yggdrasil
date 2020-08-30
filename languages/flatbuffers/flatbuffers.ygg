@@ -7,14 +7,19 @@ class Root {
 }
 
 union Statement {
+    | NamespaceStatement
     | ImportStatement
     | MessageStatement
     | EnumStatement
     | ServiceStatement
 }
-// === import === -----------------------------------------------------------------------------------------------------
-class ImportStatement {
-    ^KW_IMPORT String
+// === namespace === -----------------------------------------------------------------------------------------------------
+class NamespaceStatement {
+    ^KW_NAMESPACE Identifier
+}
+// === attribute === -----------------------------------------------------------------------------------------------------
+class AttributeStatement {
+    ^KW_ATTRIBUTE String
 }
 // === message === -----------------------------------------------------------------------------------------------------
 class MessageStatement {
@@ -45,9 +50,20 @@ union EnumTerm {
 class EnumPair {
     Identifier '=' Integer
 }
-// === serverse === -----------------------------------------------------------------------------------------------------
-class ServiceStatement {
-    ^KW_SERVICE Identifier '{' MessageTerm* '}'
+// === union === -----------------------------------------------------------------------------------------------------
+class UnionStatement {
+    ^KW_UNION Identifier '{' UnionTerm* '}'
+}
+union UnionTerm {
+    | Identifier
+}
+// === structure === -----------------------------------------------------------------------------------------------------
+class StructStatement {
+    ^KW_STRUCT Identifier '{' MessageTerm* '}'
+}
+// === table === -----------------------------------------------------------------------------------------------------
+class StructStatement {
+    ^KW_TABLE Identifier '{' MessageTerm* '}'
 }
 
 
@@ -80,14 +96,15 @@ class Range {
 @railway(false)
 @style(keyword)
 token {
-    KW_MESSAGE  = 'message'
-    KW_RESERVED = 'reserved'
-    KW_ENUM     = 'enum'
-    KW_TO       = 'to'
-    KW_SERVICE  = 'service'
-    KW_RPC      = 'rpc'
-    KW_RETURNS  = 'returns'
-    KW_OPTION   = 'option'
+    KW_NAMESPACE  = 'message'
+    KW_RESERVED   = 'reserved'
+    KW_ENUM       = 'enum'
+    KW_TO         = 'to'
+    KW_SERVICE    = 'service'
+    KW_RPC        = 'rpc'
+    KW_RETURNS    = 'returns'
+    KW_OPTION     = 'option'
+    KW_DEPRECATED = 'deprecated'
 }
 // === ignores === -----------------------------------------------------------------------------------------------------
 @railway(false)
