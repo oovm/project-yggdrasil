@@ -1,0 +1,28 @@
+grammar webidl {
+    file: "*.webidl"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+// === keywords === ----------------------------------------------------------------------------------------------------
+@railway(false)
+@style(keyword)
+token {
+    KW_ASYNC       = 'async'
+    KW_ATTRIBUTE   = 'attribute'
+    KW_CALLBACK    = 'callback'
+    KW_CONST       = 'const'
+    KW_CONSTRUCTOR = 'constructor'
+    KW_DELETER     = 'deleter'
+    KW_DICTIONARY  = 'dictionary'
+    KW_ENUM        = 'enum'
+}

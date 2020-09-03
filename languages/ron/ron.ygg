@@ -1,0 +1,4 @@
+grammar ron {
+    file: "*.ron"
+}
+
