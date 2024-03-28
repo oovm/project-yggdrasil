@@ -1,5 +1,5 @@
 grammar dejavu {
-    file: "*.djv"
+    file = "*.djv"
 }
 
 
@@ -23,18 +23,15 @@ class Namepath {
 class NamepathFree -> Namepath {
     Identifier ((OP_PROPORTION | DOT) Identifier)*
 }
-token {
-    OP_PROPORTION: /∷|::/
-    DOT: '.'
-}
+
 // === Identifier === --------------------------------------------------------------------------------------------------
 atomic union Identifier {
     | UNICODE_ID                  #Normal
     | ^RAW_ID_L RAW_ID ^RAW_ID_R  #Escape
 }
 token {
-    RAW_ID: /[^`]+/
-    UNICODE_ID: /[_\p{XID_start}]\p{XID_continue}*/
+    RAW_ID     = /[^`]+/
+    UNICODE_ID = /[_\p{XID_start}]\p{XID_continue}*/
 }
 // === Text === --------------------------------------------------------------------------------------------------------
 @style(text)
@@ -44,47 +41,50 @@ class TemplateText {
 
 token {
     // outer
-    TEMPLATE_E: '<<%'
-    TEXT_SPACE: /\p{White_Space}+/
-    TEXT_WORD:  /\p{XID_continue}+/
-    TEXT_OTHER: /[^<]+/;
+    TEMPLATE_E = '<<%'
+    TEXT_SPACE = /\p{White_Space}+/
+    TEXT_WORD  = /\p{XID_continue}+/
+    TEXT_OTHER = /[^<]+/;
     // inner
     #style(operator)
-    TEMPLATE_L: '<%'
+    TEMPLATE_L = '<%'
     #style(operator)
-    TEMPLATE_R: '%>'
+    TEMPLATE_R = '%>'
     #style(keyword)
-    SPACE_CONTROL: [_\-=]
+    SPACE_CONTROL = [_\-=]
 }
 
 token {
     // keywords
-    KW_IF:   'if';
-    KW_ELSE: 'else';
-    KW_END:  'end';
+    KW_IF   = 'if';
+    KW_ELSE = 'else';
+    KW_END  = 'end';
 
-    DOT:   '.';
-    COMMA: ',';
-    OP_PROPORTION: '::'
-    // quotes
-
-    RAW_ID_L: '`'
-    RAW_ID_R: '`'
-    // brackets
-    PARENTHESES_L: '('
-    PARENTHESES_R: ')'
-    BRACKET_L:     '['
-    BRACKET_R:     ']'
-    BRACE_L:       '{'
-    BRACE_R:       '}'
-    GENERIC_L:     '⟨'
-    GENERIC_R:     '⟩'
-    // id
+    DOT           = '.'
+    COMMA         = ',';
+    OP_PROPORTION = /∷|::/
 }
 
+#railroad(false)
+token Quotes {
+    RAW_ID_L = '`'
+    RAW_ID_R = '`'
+}
+
+#railroad(false)
+token Brackets {
+    PARENTHESES_L = '('
+    PARENTHESES_R = ')'
+    BRACKET_L     = '['
+    BRACKET_R     = ']'
+    BRACE_L       = '{'
+    BRACE_R       = '}'
+    GENERIC_L     = '⟨'
+    GENERIC_R     = '⟩'
+}
 
 ignore union Comment {
     | @comment_line('//')
-    | @comment_block('/*', '*/', nest: false)
+    | @comment_block('/*', '*/', nest = false)
 }
 

@@ -1,6 +1,6 @@
 grammar ini {
-    display: "Initialization File"
-    file: '*.ini'
+    display = "Initialization File"
+    file = '*.ini'
 }
 
 entry union Item {

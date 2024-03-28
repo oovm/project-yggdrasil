@@ -1,5 +1,5 @@
 grammar json5 {
-    file: '*.json5'
+    file = '*.json5'
 }
 
 entry union Value {

@@ -1,4 +1,4 @@
 grammar tex {
-    file: "*.tex"
+    file = "*.tex"
 }
 
