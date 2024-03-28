@@ -1,0 +1,39 @@
+grammar valkyrie_formatter {
+
+}
+using valkyrie.*;
+// =======================----------------------------------------------------------------------------------------------
+// === string interpolation === ----------------------------------------------------------------------------------------
+// ============================-----------------------------------------------------------------------------------------
+atomic class StringInterpolations {
+    StringInterpolationTerm* EOI
+}
+union StringInterpolationTerm {
+    | EscapeUnicode
+    | EscapeCharacter
+    | StringInterpolationSimple
+    | StringInterpolationComplex
+    | StringInterpolationText
+}
+atomic text class EscapeCharacter {
+    /\\\\.|\{\{|\}\}/
+}
+atomic class EscapeUnicode {
+    '\u' '{' ~ code:EscapeUnicodeCode ~ '}'
+}
+text class EscapeUnicodeCode {
+    /[0-9a-zA-Z]*/
+}
+class StringInterpolationSimple {
+    '{' MainExpression (^COLON StringFormatter)? '}'
+}
+text class StringInterpolationText {
+    /[^{}\\\\]+/
+}
+text class StringFormatter {
+    /[^}]+/
+}
+/// `{ expression, 'argument', time: A }`
+class StringInterpolationComplex {
+    '{' MainExpression (^COMMA TuplePair)* ^COMMA? '}'
+}

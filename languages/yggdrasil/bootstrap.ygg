@@ -1,5 +1,5 @@
 grammar bootstrap {
-    patterns: ('*.ygg')
+    patterns = ('*.ygg')
 }
 
 class Root {
