@@ -1,6 +1,7 @@
 grammar valkyrie_formatter {
 
 }
+@ignore(inherit)
 using valkyrie.*;
 // =======================----------------------------------------------------------------------------------------------
 // === string interpolation === ----------------------------------------------------------------------------------------
@@ -19,7 +20,7 @@ atomic text class EscapeCharacter {
     /\\\\.|\{\{|\}\}/
 }
 atomic class EscapeUnicode {
-    '\u' '{' ~ code:EscapeUnicodeCode ~ '}'
+    '\u' '{' ~ code=EscapeUnicodeCode ~ '}'
 }
 text class EscapeUnicodeCode {
     /[0-9a-zA-Z]*/
@@ -28,7 +29,7 @@ class StringInterpolationSimple {
     '{' MainExpression (^COLON StringFormatter)? '}'
 }
 text class StringInterpolationText {
-    /[^{}\\\\]+/
+    /[^{}\\]+/
 }
 text class StringFormatter {
     /[^}]+/

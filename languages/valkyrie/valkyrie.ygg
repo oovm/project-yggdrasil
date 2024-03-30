@@ -1,5 +1,5 @@
 grammar valkyrie {
-    patterns = ("*.vk", "*.valkyrie"),
+    patterns: ("*.vk", "*.valkyrie"),
 }
 // === statements === -----------------------------------------------------------------
 atomic class Program {

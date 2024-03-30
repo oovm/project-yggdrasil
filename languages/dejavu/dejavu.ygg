@@ -1,90 +1,192 @@
-grammar dejavu {
-    file = "*.djv"
+grammar Dejavu {
+    file: "*.dejavu"
 }
 
-
-union Root {
-    | DefineImport
-    | DefineClass
-    | IfStatement
-    | ForStatement
-    | SlotStatement
-    | ApplyStatement
-    | MatchStatement
-    | AnyExpression
-    | TemplateText
+entry class Root {
+    Element*
 }
 
-
-// === namepath === ----------------------------------------------------------------------------------------------------
-class Namepath {
-    Identifier ((OP_PROPORTION | DOT) Identifier)*
+union Element {
+    | TextMany       #Text
+    | TemplateExport #Export
+    | TemplateIf     #If
+    | TemplateFor    #For
 }
+// === text area === ---------------------------------------------------------------------------------------------------
+atomic class TextMany {
+    TextElement+
+}
+union TextElement {
+    | TEXT_SPACE #TextSpace
+    | TEXT_WORD  #TextWord
+}
+// === template export === -------------------------------------------------------------------------------------------------
+class TemplateExport ^ {
+    TEMPLATE_L exports=ExportItem* TEMPLATE_R
+}
+class ExportItem ^ {
+    KW_EXPORT name=Identifier
+    (KW_TO language=Identifier)?
+    (KW_BY KW_CLASS class=NamepathFree)?
+    (KW_BY KW_TRAIT trait=NamepathFree?)?
+}
+
+// === template if === -------------------------------------------------------------------------------------------------
+atomic class TemplateIf {
+    IfBegin IfElseIf* IfElse? IfEnd
+}
+atomic class IfBegin {
+    TEMPLATE_L ~ ^KW_IF ~ Expression ~ TEMPLATE_R Element*
+}
+atomic class IfElse {
+    TEMPLATE_L ~ ^KW_ELSE ~ TEMPLATE_R Element*
+}
+atomic class IfElseIf {
+    TEMPLATE_L ~ ^KW_ELSE ~ ^KW_IF ~ Expression ~ TEMPLATE_R Element*
+}
+atomic class IfEnd {
+    TEMPLATE_L ~ ^KW_END ~ ^KW_IF? ~ TEMPLATE_R
+}
+
+// === template for === ------------------------------------------------------------------------------------------------
+atomic class TemplateFor {
+    ForBegin ForElse? ForEnd
+}
+atomic class ForBegin {
+    TEMPLATE_L ~
+    ^KW_FOR ~ (!KW_IN Pattern) ~
+    (^KW_IN ~ iterator=Expression) ~
+    (^KW_IF ~ condition=Expression)? ~
+    TEMPLATE_R Element*
+}
+atomic class ForElse {
+    TEMPLATE_L ~ ^KW_ELSE ~ TEMPLATE_R Element*
+}
+atomic class ForEnd {
+    TEMPLATE_L ~ ^KW_END ~ ^KW_FOR? ~ TEMPLATE_R
+}
+
+// === pattern === ---------------------------------------------------------------------------------------------------
+union Pattern {
+    | BarePattern
+}
+class BarePattern {
+    Identifier (',' Identifier)* ','?
+}
+// === text area === ---------------------------------------------------------------------------------------------------
+class Expression {
+    Term ExpressionRest*
+}
+class ExpressionRest {
+    Infix Term
+}
+union Infix {
+    | '+' #Add
+    | '-' #Mul
+}
+class Term {
+    Prefix* Atomic Suffix*
+}
+union Prefix {
+    | '!' #Not
+}
+union Suffix {
+    | '?' #Null
+    | '.' Identifier #DotCall
+}
+// === string === ------------------------------------------------------------------------------------------------------
+union Atomic {
+    //  | '(' @box(Expression) ')' #Group
+    | Boolean                  #Boolean
+    | Identifier               #Identifier
+    | Number                   #Number
+}
+// === string === ------------------------------------------------------------------------------------------------------
+union String {
+    | "'" "'" #DoubleQuote
+    | '"' '"' #SingleQuote
+}
+// === number === ------------------------------------------------------------------------------------------------------
+atomic union Number {
+    | Digits     #Dec
+    | /0b/ BIN   #Bin
+    | /0o/ OCT   #Oct
+    | /0x/ HEX   #Hex
+}
+text class Digits {
+    /(0|[1-9][0-9])(.[0-9]+)?/
+}
+class Unit {
+    Identifier
+}
+
+// === identifier === --------------------------------------------------------------------------------------------------
 class NamepathFree -> Namepath {
-    Identifier ((OP_PROPORTION | DOT) Identifier)*
+    Identifier (('.' | '::') Identifier)*
 }
-
-// === Identifier === --------------------------------------------------------------------------------------------------
-atomic union Identifier {
-    | UNICODE_ID                  #Normal
-    | ^RAW_ID_L RAW_ID ^RAW_ID_R  #Escape
+class Namepath {
+    Identifier ('::' Identifier)*
 }
+class Identifier {
+    /[_\p{XID_start}]\p{XID_continue}*/
+}
+// === template token === ----------------------------------------------------------------------------------------------
+@railway(false)
+@style(keyword)
+union Boolean {
+    | 'true'  #True
+    | 'false' #False
+}
+@railway(false)
+@style(number)
 token {
-    RAW_ID     = /[^`]+/
-    UNICODE_ID = /[_\p{XID_start}]\p{XID_continue}*/
+    BIN: /0b[0-1]+/
+    //  OCT: /0o[0-7]+/
+    HEX: /0x[0-9a-fA-F]+/
 }
-// === Text === --------------------------------------------------------------------------------------------------------
-@style(text)
-class TemplateText {
-    TEMPLATE_E | TEXT_SPACE | TEXT_WORD | TEXT_OTHER
-}
-
+// === keywords === --------------------------------------------------------------------------------------------------
+@railway(false)
+@style(keyword)
 token {
-    // outer
-    TEMPLATE_E = '<<%'
-    TEXT_SPACE = /\p{White_Space}+/
-    TEXT_WORD  = /\p{XID_continue}+/
-    TEXT_OTHER = /[^<]+/;
-    // inner
-    #style(operator)
-    TEMPLATE_L = '<%'
-    #style(operator)
-    TEMPLATE_R = '%>'
-    #style(keyword)
-    SPACE_CONTROL = [_\-=]
-}
+    KW_EXPORT: 'export'
+    KW_CLASS: 'class'
+    KW_TRAIT: 'trait'
+    KW_TO: 'to'
+    KW_BY: 'by'
 
+    KW_FOR: 'for'
+    KW_IN: 'in'
+    KW_IF: 'if'
+    KW_ELSE: 'else'
+    KW_END: 'end'
+}
+@style(operator)
+atomic token  {
+    TEMPLATE_L: ('<%' SpaceControl?)
+    TEMPLATE_R: (SpaceControl? '%>')
+}
+union SpaceControl {
+    | '=' #Nothing
+    | '~' #Break0
+    | '-' #Break1
+    | '_' #Delete0
+    | '.' #Delete1
+}
+@railway(false)
 token {
-    // keywords
-    KW_IF   = 'if';
-    KW_ELSE = 'else';
-    KW_END  = 'end';
-
-    DOT           = '.'
-    COMMA         = ',';
-    OP_PROPORTION = /∷|::/
+    TEXT_SPACE: /\p{White_Space}+/
+    TEXT_WORD :  /[^<\p{White_Space}]+/
+}
+// === ignores === -----------------------------------------------------------------------------------------------------
+@railway(false)
+ignore class WhiteSpace {
+    /\p{White_Space}+/
 }
 
-#railroad(false)
-token Quotes {
-    RAW_ID_L = '`'
-    RAW_ID_R = '`'
-}
-
-#railroad(false)
-token Brackets {
-    PARENTHESES_L = '('
-    PARENTHESES_R = ')'
-    BRACKET_L     = '['
-    BRACKET_R     = ']'
-    BRACE_L       = '{'
-    BRACE_R       = '}'
-    GENERIC_L     = '⟨'
-    GENERIC_R     = '⟩'
-}
-
-ignore union Comment {
-    | @comment_line('//')
-    | @comment_block('/*', '*/', nest = false)
-}
+//@style(comment)
+//ignore union Comment {
+//    | @comment_line('//')
+//    | @comment_line('#')
+//    | @comment_block('/*', '*/', nest: false)
+//}
 

@@ -1,6 +1,7 @@
 grammar valkyrie_template {
 
 }
+@ignore(inherit)
 using valkyrie.*;
 // =======================----------------------------------------------------------------------------------------------
 // === string template === ---------------------------------------------------------------------------------------------
@@ -15,8 +16,9 @@ union StringTemplateTerm {
 class ExpressionTemplate {
     TEMPLATE_S MainExpression TEMPLATE_E
 }
-// === string template === ---------------------------------------------------------------------------------------------
-// === for template === ---------------------------------------------------------------------------------------------
+// === while template === ----------------------------------------------------------------------------------------------
+
+// === for template === ------------------------------------------------------------------------------------------------
 atomic class ForTemplate {
     ForTemplateBegin ForTemplateElse? ForTemplateEnd
 }
@@ -29,7 +31,6 @@ class ForTemplateElse {
 class ForTemplateEnd {
     TEMPLATE_S KW_END KW_FOR? TEMPLATE_E
 }
-
 @railway(false)
 atomic class TEMPLATE_S {
     ^TEMPLATE_L TEMPLATE_M?
@@ -40,7 +41,7 @@ atomic class TEMPLATE_E {
 }
 @railway(false)
 token {
-    TEMPLATE_L = '<%'
-    TEMPLATE_R = '%>'
-    TEMPLATE_M = [-_~.=]
+    TEMPLATE_L: '<%'
+    TEMPLATE_R: '%>'
+    TEMPLATE_M: [-_~.=]
 }
