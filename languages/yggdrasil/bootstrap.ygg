@@ -1,5 +1,5 @@
 grammar bootstrap {
-    patterns = ('*.ygg')
+    patterns: ('*.ygg')
 }
 
 class Root {
@@ -21,7 +21,7 @@ union GrammarTerm {
     | [,;]
 }
 class GrammarPair {
-    key:Identifier ':' GrammarValue
+    key=Identifier ':' GrammarValue
 }
 union GrammarValue {
     | GrammarDict
@@ -42,17 +42,14 @@ inline class GrammarListTerms {
 }
 // === class === -----------------------------------------------------------------------------------------------------
 class ClassStatement {
-    DecoratorCall* ModifierCall* ^KW_CLASS (name:Identifier) ('->' cast:Identifier)? OP_REMARK? ClassBlock
+    DecoratorCall* ModifierCall* ^KW_CLASS (name=Identifier) ('->' cast=Identifier)? OP_REMARK? ClassBlock
 }
 class ClassBlock {
     '{' '|'? Expression '}'
 }
-token {
-    OP_REMARK = '^'
-}
 // === union === -----------------------------------------------------------------------------------------------------
 class UnionStatement {
-    DecoratorCall* ModifierCall* ^KW_UNION (name:Identifier) OP_REMARK? UnionBlock
+    DecoratorCall* ModifierCall* ^KW_UNION (name=Identifier) OP_REMARK? UnionBlock
 }
 class UnionBlock {
     '{' UnionBranch* '}'
@@ -83,7 +80,7 @@ class DecoratorCall {
 }
 @style(annotation)
 class DecoratorName {
-    [@#] Identifier
+    [@\#] Identifier
 }
 class FunctionCall {
     FunctionName CallBody
@@ -105,21 +102,21 @@ class CallBody {
 class Expression     { ExpressionHard ('|' ExpressionHard)* }
 class ExpressionHard { ExpressionSoft ('~' ExpressionSoft)* }
 class ExpressionSoft { ExpressionTag ExpressionTag* }
-class ExpressionTag  { (Identifier ':')? Term }
+class ExpressionTag  { (Identifier '=')? Term }
 class Term {
     Prefix* Atomic Suffix*
 }
 union Prefix {
-    | '!' #Negative
-    | '&' #Positive
-    | '^' #Remark
+    | OP_REMARK   #Remark
+    | OP_NETATIVE #Negative
+    | OP_POSITIVE #Positive
 }
 union Suffix {
-    | '?' #Optional
-    | '*' #Many
-    | '+' #Many1
-    | RangeExact
-    | Range
+    | OP_OPTIONAL #Optional
+    | OP_MANY     #Many
+    | OP_MANY1    #Many1
+    | RangeExact  #RangeExact
+    | Range       #Range
 }
 // === atoms === -------------------------------------------------------------------------------------------------------
 union Atomic {
@@ -183,7 +180,7 @@ class RegexNegative {
 }
 // === unicode category === --------------------------------------------------------------------------------------------------
 class Category {
-    ^OP_CATEGORY '{' (group:Identifier '=')? script:Identifier '}'
+    ^OP_CATEGORY '{' (group=Identifier '=')? script=Identifier '}'
 }
 // === identifier === --------------------------------------------------------------------------------------------------
 class NamepathFree -> Namepath {
@@ -196,8 +193,8 @@ class Identifier {
     /[_\p{XID_start}]\p{XID_continue}*/
 }
 union Boolean {
-    | 'true'  #True
-    | 'false' #False
+    | KW_TRUE  #True
+    | KW_FALSE #False
 }
 // === number === ----------------------------------------------------------------------------------------------------
 class Integer {
@@ -207,16 +204,11 @@ class RangeExact {
     '{' Integer '}'
 }
 class Range {
-    '{' (min:Integer)? ',' (max:Integer)? '}'
+    '{' (min=Integer)? ',' (max=Integer)? '}'
 }
 // === keywords === ----------------------------------------------------------------------------------------------------
 atomic class ModifierCall ^ {
     !(KW_CLASS | KW_UNION | KW_GROUP | KW_MACRO | KW_CLIMB) ^Identifier
-}
-@railway(false)
-@style(keyword)
-token {
-    OP_CATEGORY = '\p'
 }
 @railway(false)
 @style(keyword)
@@ -228,21 +220,34 @@ union KW_EXTERNAL {
 @railway(false)
 @style(keyword)
 token {
-    KW_GRAMMAR = /grammar/
-    KW_IMPORT  = /using|use|import/
-    KW_CLASS   = /class|struct/
-    KW_UNION   = /union|enum/
-    KW_GROUP   = /group|token/
-    KW_CLIMB   = /climb/
-    KW_MACRO   = /macro|def|function|func|fun|fn/
+    KW_GRAMMAR: 'grammar'
+    KW_IMPORT : /using|use|import/
+    KW_CLASS  : /class|struct/
+    KW_UNION  : /union|enum/
+    KW_GROUP  : /group|token/
+    KW_CLIMB  : /climb/
+    KW_MACRO  : /macro|def|function|func|fun|fn/
+    KW_TRUE   : 'true'
+    KW_FALSE  : 'false'
+}
+@railway(false)
+@style(operation)
+token {
+    OP_NETATIVE: '!'
+    OP_POSITIVE: '&'
+    OP_REMARK  : '^'
+    OP_OPTIONAL: '?'
+    OP_MANY    : '*'
+    OP_MANY1   : '+'
+    OP_CATEGORY: '\p'
 }
 // === ignores === -----------------------------------------------------------------------------------------------------
 @railway(false)
-ignore class WhiteSpace {
+hide class WhiteSpace {
     /\p{White_Space}+/
 }
 @style(comment)
-ignore class Comment {
+hide class Comment {
     | /\/\/[^\n\r]*/
     | '/*'  '*/'
 }
