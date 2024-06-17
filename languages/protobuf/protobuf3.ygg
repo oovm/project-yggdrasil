@@ -1,5 +1,5 @@
 grammar protobuf3 {
-    patterns = ('*.proto')
+    patterns: ('*.proto')
 }
 
 class Root {

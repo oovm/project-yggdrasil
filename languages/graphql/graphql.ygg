@@ -1,4 +1,4 @@
 grammar graphql {
-    file = "*.gql"
+    file: "*.gql"
 }
 

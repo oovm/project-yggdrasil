@@ -1,5 +1,5 @@
 grammar toml {
-    file = ('*.toml', 'Cargo.lock')
+    file: ('*.toml', 'Cargo.lock')
 }
 
 entry union Item {

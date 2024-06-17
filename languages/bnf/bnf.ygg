@@ -1,5 +1,5 @@
 grammar bnf {
-    file = "*.bnf"
+    file: "*.bnf"
 }
 
 entry class Grammar {

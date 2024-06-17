@@ -71,14 +71,21 @@ class ExpressionRest {
     Infix Term
 }
 union Infix {
-    | '+' #Add
-    | '-' #Mul
+    | OP_IS
+    | InfixOperators
+}
+
+class InfixOperators {
+    / [+\-*\/]
+    | <{1,3}
+    | >{1,3}
+    /
 }
 class Term {
     Prefix* Atomic Suffix*
 }
-union Prefix {
-    | '!' #Not
+class Prefix {
+    [+\-!]
 }
 union Suffix {
     | '?' #Null
@@ -114,7 +121,6 @@ union Atomic {
 class GroupExpression {
     '(' Expression ')'
 }
-
 // === special === -----------------------------------------------------------------------------------------------------
 #railway(false)
 #style(keyword)
@@ -170,25 +176,33 @@ token {
     KW_IF: 'if'
     KW_ELSE: 'else'
     KW_END: 'end'
+
+    OP_IS: (KW_IS KW_NOT?)
+    KW_AS: 'as'
+    KW_IS: 'is'
+    KW_NOT: 'not'
 }
+
 #style(operator)
 atomic token {
     TEMPLATE_L: ('<%' SpaceControl?)
     TEMPLATE_R: (SpaceControl? '%>')
 }
 union SpaceControl {
-    | '=' #Nothing
-    | '~' #Break0
-    | '-' #Break1
-    | '_' #Delete0
-    | '.' #Delete1
+    | EQUAL #Nothing
+    | '~'   #Break0
+    | '-'   #Break1
+    | '_'   #Delete0
+    | DOT   #Delete1
 }
 #railway(false)
 token {
-    DOT:   '.'
+    EQUAL: '='
     COMMA: ','
     COLON: ':'
+    DOT:   '.'
 }
+
 #railway(false)
 token {
     TEXT_SPACE: /\p{White_Space}+/
@@ -199,10 +213,9 @@ token {
 ignore class WhiteSpace {
     /\p{White_Space}+/
 }
-//#style(comment)
-//ignore union Comment {
-//    | @comment_line('//')
-//    | @comment_line('#')
-//    | @comment_block('/*', '*/', nest: false)
-//}
-
+#style(comment)
+ignore union Comment {
+    | @comment_line('//')
+    | @comment_line('#')
+    | @comment_block('/*', '*/', nest: false)
+}

@@ -1,5 +1,5 @@
 grammar flatbuffers {
-    patterns = ('*.fbs')
+    patterns: ('*.fbs')
 }
 
 class Root {
